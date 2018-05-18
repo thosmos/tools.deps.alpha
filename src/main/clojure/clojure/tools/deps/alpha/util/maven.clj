@@ -68,24 +68,37 @@
     (doto (DefaultMavenSettingsBuilder.)
       (set-settings-builder (.newInstance (DefaultSettingsBuilderFactory.))))))
 
+(defn- get-auth-val ^String [repo-auth]
+  (if (and (keyword? repo-auth) (= (namespace repo-auth) "env"))
+    (System/getenv (name repo-auth))
+    repo-auth))
+
 (defn remote-repo
-  ^RemoteRepository [[^String name {:keys [url]}]]
+  ^RemoteRepository [[^String name {:keys [url username password]}]]
   (let [repository (RemoteRepository$Builder. name "default" url)
         ^org.apache.maven.settings.Server server-setting
         (first (filter
                  #(.equalsIgnoreCase name
                                      (.getId ^org.apache.maven.settings.Server %))
                  (.getServers (get-settings))))]
-    (cond-> repository
+    (cond
       server-setting
-      (.setAuthentication (-> (AuthenticationBuilder.)
-                              (.addUsername (.getUsername server-setting))
-                              (.addPassword (.getPassword server-setting))
-                              (.addPrivateKey (.getPrivateKey server-setting)
-                                              (.getPassphrase server-setting))
-                              (.build)))
-      true
-      (.build))))
+      (.build (.setAuthentication repository (-> (AuthenticationBuilder.)
+                                                 (.addUsername (.getUsername server-setting))
+                                                 (.addPassword (.getPassword server-setting))
+                                                 (.addPrivateKey (.getPrivateKey server-setting)
+                                                                 (.getPassphrase server-setting))
+                                                 (.build))))
+
+      (and username password)
+      (let [user-val (get-auth-val username)
+            pass-val (get-auth-val password)]
+        (.build (.setAuthentication repository (-> (AuthenticationBuilder.)
+                                                   (.addUsername user-val)
+                                                   (.addPassword pass-val)
+                                                   (.build)))))
+      :else
+      (.build repository))))
 
 ;; Local repository
 
