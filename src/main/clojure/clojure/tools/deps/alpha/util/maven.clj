@@ -68,24 +68,42 @@
     (doto (DefaultMavenSettingsBuilder.)
       (set-settings-builder (.newInstance (DefaultSettingsBuilderFactory.))))))
 
-(defn remote-repo
-  ^RemoteRepository [[^String name {:keys [url]}]]
-  (let [repository (RemoteRepository$Builder. name "default" url)
-        ^org.apache.maven.settings.Server server-setting
+(defn- get-auth-val ^String [repo-auth]
+  (if (and (keyword? repo-auth) (= (namespace repo-auth) "env"))
+    (System/getenv (name repo-auth))
+    repo-auth))
+
+(defn- set-authentication
+  ^RemoteRepository$Builder
+  [^RemoteRepository$Builder builder
+   ^String repo-name {:keys [username password private-key-file passphrase]}]
+  (let [^org.apache.maven.settings.Server server-setting
         (first (filter
-                 #(.equalsIgnoreCase name
+                 #(.equalsIgnoreCase repo-name
                                      (.getId ^org.apache.maven.settings.Server %))
                  (.getServers (get-settings))))]
-    (cond-> repository
+    (cond
       server-setting
-      (.setAuthentication (-> (AuthenticationBuilder.)
-                              (.addUsername (.getUsername server-setting))
-                              (.addPassword (.getPassword server-setting))
-                              (.addPrivateKey (.getPrivateKey server-setting)
-                                              (.getPassphrase server-setting))
-                              (.build)))
-      true
-      (.build))))
+      (.setAuthentication builder (.. (AuthenticationBuilder.)
+                                      (addUsername (.getUsername server-setting))
+                                      (addPassword (.getPassword server-setting))
+                                      (addPrivateKey (.getPrivateKey server-setting)
+                                                     (.getPassphrase server-setting))
+                                      build))
+      (or username password private-key-file passphrase)
+      (.setAuthentication builder (.. (AuthenticationBuilder.)
+                                      (addUsername (get-auth-val username))
+                                      (addPassword (get-auth-val password))
+                                      (addPrivateKey (get-auth-val private-key-file)
+                                                     (get-auth-val passphrase))
+                                      build))
+      builder)))
+
+(defn remote-repo
+  ^RemoteRepository [[^String name {:keys [url] :as opts}]]
+  (-> (RemoteRepository$Builder. name "default" url)
+      (set-authentication name opts)
+      .build))
 
 ;; Local repository
 

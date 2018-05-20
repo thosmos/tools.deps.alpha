@@ -72,8 +72,13 @@
 ;; maven 
 (s/def :mvn/repos (s/map-of ::repo-id ::repo))
 (s/def ::repo-id string?)
-(s/def ::repo (s/keys :opt-un [::url]))
+(s/def ::repo (s/keys :opt-un [::url ::username ::password ::private-key-file ::passphrase]))
 (s/def ::url string?)
+(def repo-auth (s/or :string string? :keyword (s/and keyword? #(= (namespace %) "env"))))
+(s/def ::username repo-auth)
+(s/def ::password repo-auth)
+(s/def ::private-key-file repo-auth)
+(s/def ::passphrase repo-auth)
 (s/def :mvn/local-repo string?)
 
 ;; API
