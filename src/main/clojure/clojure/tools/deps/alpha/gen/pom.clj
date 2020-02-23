@@ -14,7 +14,8 @@
             [clojure.zip :as zip]
             [clojure.tools.deps.alpha.util.io :refer [printerrln]])
   (:import [java.io File Reader]
-           [clojure.data.xml.node Element]))
+           [clojure.data.xml.node Element]
+           [clojure.data.xml.event CharsEvent]))
 
 (set! *warn-on-reflection* true)
 
@@ -114,9 +115,15 @@
     (xml-update pom [::pom/repositories] (xml/sexp-as-element (gen-repos repos)))
     pom))
 
+(defn- event-node [evt]
+  (let [result (event/event-node evt)]
+    (if (instance? CharsEvent evt)
+      (clojure.string/trim result)
+      result)))
+
 (defn- parse-xml
   [^Reader rdr]
-  (let [roots (tree/seq-tree event/event-element event/event-exit? event/event-node
+  (let [roots (tree/seq-tree event/event-element event/event-exit? event-node
                 (xml/event-seq rdr {:include-node? #{:element :characters :comment}}))]
     (first (filter #(instance? Element %) (first roots)))))
 
