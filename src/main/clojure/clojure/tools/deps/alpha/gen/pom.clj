@@ -21,7 +21,7 @@
 (xml/alias-uri 'pom "http://maven.apache.org/POM/4.0.0")
 
 (defn- to-dep
-  [[lib {:keys [mvn/version classifier exclusions] :as coord}]]
+  [[lib {:keys [mvn/version classifier exclusions scope] :as coord}]]
   (if version
     (cond->
       [::pom/dependency
@@ -38,7 +38,10 @@
                     [::pom/exclusion
                      [::pom/groupId (namespace excl)]
                      [::pom/artifactId (name excl)]])
-               exclusions)]))
+               exclusions)])
+
+      scope
+      (conj [::pom/scope scope]))
     (printerrln "Skipping coordinate:" coord)))
 
 (defn- gen-deps
